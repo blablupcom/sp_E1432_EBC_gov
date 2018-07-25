@@ -45,6 +45,7 @@ def validateURL(url):
             count += 1
             r = urllib2.urlopen(url)
         sourceFilename = r.headers.get('Content-Disposition')
+
         if sourceFilename:
             ext = os.path.splitext(sourceFilename)[1].replace('"', '').replace(';', '').replace(' ', '')
         else:
@@ -84,8 +85,8 @@ def convert_mth_strings ( mth_string ):
 
 #### VARIABLES 1.0
 
-entity_id = "E1736_HDC_gov"
-url = "https://www.hart.gov.uk/council-finances"
+entity_id = "E1432_EBC_gov"
+url = "https://www.lewes-eastbourne.gov.uk/access-to-information/open-data/"
 errors = 0
 data = []
 
@@ -97,21 +98,62 @@ soup = BeautifulSoup(html, 'lxml')
 
 #### SCRAPE DATA
 
-links = soup.find('p', text = re.compile('These are available as machine readable CSV')).find_next('ul').find_all('a')
-for link in links:
-    if '.csv' in link['href']:
-        file_name = link.parent.text.strip()
-        if 'http' not in link['href']:
-            url = 'https://www.hart.gov.uk' + link['href']
-        else:
-            url = link['href']
-        csvMth = 'Y1'
-        match = re.match(r'.*([1-3][0-9]{3})', file_name)
-        if match is not None:
-            csvYr = match.group(1)
-        csvMth = convert_mth_strings(csvMth.upper())
-        data.append([csvYr, csvMth, url])
+rows = soup.find('div', id='espr_renderHost_PageStructureDisplayRenderer_esctl_e20da2f9-8bba-42eb-9960-fee2d7eeaa00_ctl00_InnerRenderer_e20da2f9-8bba-42eb-9960-fee2d7eeaa00_esctl_764506d8-3e8c-4071-88fd-f05d8ae6c815_ctl00_InnerRenderer_764506d8-3e8c-4071-88fd-f05d8ae6c815_esctl_18a6d5b6-2de7-4cfe-9a5c-919f8468f97c_updConsolePanel')
+next_link = rows.find('a', attrs = {'title': 'Next Page'})
+while next_link:
+    ul_blocks = rows.find_all('a')
+    for ul_block in ul_blocks:
+        url = ul_block['href']
+        if '.csv' in url or '.xls' in url or '.xlsx' in url:
+            if 'http' not in url:
+                url = 'https://www.lewes-eastbourne.gov.uk' + url
+            else:
+                url = url
+            file_name = ul_block['title']
+            csvMth = file_name.split('pending ')[-1].strip()[:3]
+            match = re.match(r'.*([1-3][0-9]{3})', file_name)
+            if match is not None:
+                csvYr = match.group(1)
+            csvMth = convert_mth_strings(csvMth.upper())
+            data.append([csvYr, csvMth, url])
+    next_l = rows.find('a', attrs = {'title': 'Next Page'})
+    if next_l:
+        next_link = next_l['href']
+        next_link = 'https://www.lewes-eastbourne.gov.uk/access-to-information/open-data/'+next_link
+        next_html = urllib2.urlopen(next_link)
+        soup = BeautifulSoup(next_html, 'lxml')
+        rows = soup.find('div',
+                         id='espr_renderHost_PageStructureDisplayRenderer_esctl_e20da2f9-8bba-42eb-9960-fee2d7eeaa00_ctl00_InnerRenderer_e20da2f9-8bba-42eb-9960-fee2d7eeaa00_esctl_764506d8-3e8c-4071-88fd-f05d8ae6c815_ctl00_InnerRenderer_764506d8-3e8c-4071-88fd-f05d8ae6c815_esctl_18a6d5b6-2de7-4cfe-9a5c-919f8468f97c_updConsolePanel')
+    else:
+        break
 
+east_rows = soup.find('div',id='espr_renderHost_PageStructureDisplayRenderer_esctl_e20da2f9-8bba-42eb-9960-fee2d7eeaa00_ctl00_InnerRenderer_e20da2f9-8bba-42eb-9960-fee2d7eeaa00_esctl_2844b1ad-6ceb-4768-9254-9bb04c1d7a44_ctl00_InnerRenderer_2844b1ad-6ceb-4768-9254-9bb04c1d7a44_esctl_432015d9-86f2-4bc3-b67e-1f6d3c1eab3e_pnlAssetDisplayArea')
+next_link = east_rows.find('a', attrs={'title': 'Next Page'})
+while next_link:
+    ul_blocks = east_rows.find_all('a')
+    for ul_block in ul_blocks:
+        url = ul_block['href']
+        if '.csv' in url or '.xls' in url or '.xlsx' in url:
+            if 'http' not in url:
+                url = 'https://www.lewes-eastbourne.gov.uk' + url
+            else:
+                url = url
+            file_name = ul_block['title'].replace('Eastbourne Borough Council', '').strip()
+            csvMth = file_name.split()[-2].strip()[:3]
+            match = re.match(r'.*([1-3][0-9]{3})', file_name)
+            if match is not None:
+                csvYr = match.group(1)
+            csvMth = convert_mth_strings(csvMth.upper())
+            data.append([csvYr, csvMth, url])
+    next_l = east_rows.find('a', attrs={'title': 'Next Page'})
+    if next_l:
+        next_link = next_l['href']
+        next_link = 'https://www.lewes-eastbourne.gov.uk/access-to-information/open-data/' + next_link
+        next_html = urllib2.urlopen(next_link)
+        soup = BeautifulSoup(next_html, 'lxml')
+        east_rows = soup.find('div', id='espr_renderHost_PageStructureDisplayRenderer_esctl_e20da2f9-8bba-42eb-9960-fee2d7eeaa00_ctl00_InnerRenderer_e20da2f9-8bba-42eb-9960-fee2d7eeaa00_esctl_2844b1ad-6ceb-4768-9254-9bb04c1d7a44_ctl00_InnerRenderer_2844b1ad-6ceb-4768-9254-9bb04c1d7a44_esctl_432015d9-86f2-4bc3-b67e-1f6d3c1eab3e_pnlAssetDisplayArea')
+    else:
+        break
 
 #### STORE DATA 1.0
 
